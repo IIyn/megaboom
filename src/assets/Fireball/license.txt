@@ -1,0 +1,11 @@
+Model Information:
+* title:	Fire enemy for a game jam + animation
+* source:	https://sketchfab.com/3d-models/fire-enemy-for-a-game-jam-animation-cef18cd0de0b4f3b9ad653723226266f
+* author:	davidcorchea (https://sketchfab.com/davidcorchea)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Fire enemy for a game jam + animation" (https://sketchfab.com/3d-models/fire-enemy-for-a-game-jam-animation-cef18cd0de0b4f3b9ad653723226266f) by davidcorchea (https://sketchfab.com/davidcorchea) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
