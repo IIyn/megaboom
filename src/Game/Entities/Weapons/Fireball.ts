@@ -14,13 +14,15 @@ export class Fireball implements Entity {
         this.model = new THREE.Group();
         const loader = new GLTFLoader();
         loader.load("src/assets/Fireball/scene.gltf", (gltf) => {
+            // the scene is not oriented as we want it to be
+            gltf.scene.rotation.x = Math.PI / 2 * -1;
             this.model.add(gltf.scene);
             this.model.position.copy(position);
             // rotate fireball as it faces the ground
 
             // look at target
-            const direction = new THREE.Vector3().subVectors(target, position).normalize();
-            this.model.lookAt(direction);
+            // const direction = new THREE.Vector3().subVectors(target, position).normalize();
+            this.model.lookAt(target);
             scene.add(this.model);
         });
 

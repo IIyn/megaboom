@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { Player } from "./Player";
-import { Enemy } from "./Enemies/Enemy";
-import { Fireball } from "./Weapons/Fireball";
+import { Enemy } from "./Entities/Enemies/Enemy";
+import { Fireball } from "./Entities/Weapons/Fireball";
 
 export class EnemyManager {
     private enemies: Enemy[] = [];
@@ -10,7 +10,6 @@ export class EnemyManager {
     private spawnTimer: number = 0;
     private spawnInterval: number = 2.0;
     private enemyDensity: number = 5;
-    private enemyMaxDensity: number = 10;
 
     constructor(scene: THREE.Scene, player: Player) {
         this.scene = scene;
@@ -18,15 +17,25 @@ export class EnemyManager {
     }
 
     public update(delta: number) {
+        this.handleEnemyDensity(delta);
+        this.handleEnemyPathing(delta);
+        this.handleFireballDamage();
+        this.handleEnemyRemoval();
+    }
+
+    private handleEnemyDensity(delta: number) {
         this.spawnTimer += delta;
-        this.enemyDensity += delta * 0.1;
-        if (this.spawnTimer >= this.spawnInterval) {
+        this.enemyDensity += delta * 0.01;
+        const maxDensity = this.enemyDensity * 1.5;
+        if (this.spawnTimer >= this.spawnInterval && this.enemyDensity < maxDensity) {
             for (let i = 0; i < this.enemyDensity; i++) {
                 this.spawnEnemy(delta);
             }
             this.spawnTimer = 0;
         }
+    }
 
+    private handleEnemyPathing(delta: number) {
         const playerPos = this.player.getPosition();
         this.enemies.forEach((enemy) => {
             enemy.update(delta, playerPos);
@@ -36,17 +45,23 @@ export class EnemyManager {
                 this.player.takeDamage(enemy.damage, enemy.model.position);
             }
         });
+    }
 
+    private handleFireballDamage() {
         const fireballs = this.player.getFireballs();
         fireballs.forEach((fireball: Fireball) => {
             this.enemies.forEach((enemy) => {
-                if (fireball.model.position.distanceTo(enemy.model.position) < 1.0) {
+                // create an impact zone
+                const impactZone = new THREE.Sphere(fireball.model.position, 2.0);
+                if (impactZone.containsPoint(enemy.model.position)) {
                     enemy.takeDamage(1, fireball.model.position);
                     fireball.markedForRemoval = true;
                 }
             });
         });
+    }
 
+    private handleEnemyRemoval() {
         this.enemies = this.enemies.filter(enemy => {
             if (enemy.isDead()) {
                 enemy.dispose(this.scene);

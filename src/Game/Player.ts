@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { InputHandler } from "./InputHandler";
-import { Fireball } from "./Weapons/Fireball";
-import { Enemy } from "./Enemies/Enemy";
+import { Fireball } from "./Entities/Weapons/Fireball";
+import { Enemy } from "./Entities/Enemies/Enemy";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import type { Entity } from "./Entity";
+import type { Entity } from "./Entities/Entity";
 
 /**
  * Player class that handles player movement, combat, and fireballs
@@ -146,6 +146,7 @@ export class Player implements Entity {
      * @param delta time since last frame
      */
     private updateFireballs(delta: number) {
+        console.log("fireballs:: ", this.fireballs);
         this.fireballs = this.fireballs.filter(fb => {
             const hasLifetime = fb.update(delta);
             const active = hasLifetime && !fb.markedForRemoval;
