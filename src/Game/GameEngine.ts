@@ -51,6 +51,7 @@ export class GameEngine {
 
     private setupEnvironment() {
         const gridHelper = new THREE.GridHelper(100, 100, 0x444444, 0x222222);
+        // collide on gridHelper
         this.scene.add(gridHelper);
 
         const planeGeometry = new THREE.PlaneGeometry(100, 100);

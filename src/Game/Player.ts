@@ -14,7 +14,7 @@ export class Player implements Entity {
     private camera: THREE.PerspectiveCamera;
     private input: InputHandler;
     private scene: THREE.Scene;
-    public hasPhysics: boolean = false;
+    public hasPhysics: boolean = true;
 
     // stats
     private hp: number = 100;
@@ -45,7 +45,7 @@ export class Player implements Entity {
         });
     }
     dispose(scene: THREE.Scene): void {
-        throw new Error("Method not implemented.");
+        scene.remove(this.model);
     }
 
     public update(delta: number, enemies: Enemy[] = []) {
@@ -53,6 +53,13 @@ export class Player implements Entity {
         this.updateCamera();
         this.handleCombat(delta, enemies);
         this.updateFireballs(delta);
+        this.handlePhysics(delta);
+    }
+
+    private handlePhysics(delta: number) {
+        // if (this.hasPhysics) {
+        //     this.model.position.add(new THREE.Vector3(0, -10, 0).clone().multiplyScalar(delta));
+        // }
     }
 
     /**
@@ -62,10 +69,11 @@ export class Player implements Entity {
     private handleMovement(delta: number) {
         const moveDir = new THREE.Vector3(0, 0, 0);
 
-        if (this.input.isForward()) moveDir.z -= 1;
-        if (this.input.isBackward()) moveDir.z += 1;
-        if (this.input.isLeft()) moveDir.x -= 1;
-        if (this.input.isRight()) moveDir.x += 1;
+        if (this.input.isForward()) moveDir.z -= this.speed;
+        if (this.input.isBackward()) moveDir.z += this.speed;
+        if (this.input.isLeft()) moveDir.x -= this.speed;
+        if (this.input.isRight()) moveDir.x += this.speed;
+        if (this.input.isSpace()) moveDir.y += this.speed;
 
         if (moveDir.length() > 0) {
             moveDir.normalize();

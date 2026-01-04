@@ -26,4 +26,8 @@ export class InputHandler {
     public isRight(): boolean {
         return this.keys['d'] || this.keys['arrowright'];
     }
+
+    public isSpace(): boolean {
+        return this.keys[' '];
+    }
 }

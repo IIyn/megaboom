@@ -43,6 +43,9 @@ export class Enemy implements Entity {
         const direction = new THREE.Vector3().subVectors(playerPosition, this.model.position).normalize();
         this.model.position.add(direction.multiplyScalar(this.speed * delta));
         this.model.lookAt(playerPosition);
+        // if (this.hasPhysics) {
+        //     this.model.position.add(new THREE.Vector3(0, 0, 0).multiplyScalar(delta));
+        // }
     }
 
     public takeDamage(amount: number, damagePosition: THREE.Vector3) {

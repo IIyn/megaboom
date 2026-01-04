@@ -16,6 +16,11 @@ export class Fireball implements Entity {
         loader.load("src/assets/Fireball/scene.gltf", (gltf) => {
             this.model.add(gltf.scene);
             this.model.position.copy(position);
+            // rotate fireball as it faces the ground
+
+            // look at target
+            const direction = new THREE.Vector3().subVectors(target, position).normalize();
+            this.model.lookAt(direction);
             scene.add(this.model);
         });
 
