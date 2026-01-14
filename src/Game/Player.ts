@@ -11,20 +11,35 @@ import type { Entity } from "./Entities/Entity";
 export class Player implements Entity {
     // player data
     public model: THREE.Group;
+    public velocity: THREE.Vector3 = new THREE.Vector3();
+    public hasPhysics: boolean = true;
+    public isGrounded: boolean = false;
+    public groundOffset: number = 0.5;
+
     private camera: THREE.PerspectiveCamera;
     private input: InputHandler;
     private scene: THREE.Scene;
-    public hasPhysics: boolean = true;
 
     // stats
     private hp: number = 100;
     private speed: number = 10;
-    private rotationSpeed: number = 5;
+    private rotationSpeed: number = 8;
+    private jumpForce: number = 12;
+
+    // progression stats
+    private xp: number = 0;
+    private level: number = 1;
+    private xpToNextLevel: number = 100;
+    private pickupRange: number = 5;
+
+    // combat & invulnerability
+    private damageCooldown: number = 0.5; // demi-seconde d'immunité
+    private damageTimer: number = 0;
 
     // fireball stats
     private fireballs: Fireball[] = [];
     private fireballBuffer: number = 1;
-    private fireCooldown: number = 1.5; // seconds
+    private fireCooldown: number = 1.5;
     private fireTimer: number = 0;
     private range: number = 15;
 
@@ -34,7 +49,6 @@ export class Player implements Entity {
         this.input = input;
         this.model = new THREE.Group();
 
-        // load player model
         const loader = new GLTFLoader();
         loader.load('src/assets/Player/scene.gltf', (gltf) => {
             gltf.scene.scale.set(0.1, 0.1, 0.1);
@@ -44,63 +58,53 @@ export class Player implements Entity {
             this.scene.add(this.model);
         });
     }
-    dispose(scene: THREE.Scene): void {
+
+    public dispose(scene: THREE.Scene): void {
         scene.remove(this.model);
     }
 
     public update(delta: number, enemies: Enemy[] = []) {
+        if (this.damageTimer > 0) this.damageTimer -= delta;
+
         this.handleMovement(delta);
         this.updateCamera();
         this.handleCombat(delta, enemies);
         this.updateFireballs(delta);
-        this.handlePhysics(delta);
     }
 
-    private handlePhysics(delta: number) {
-        // if (this.hasPhysics) {
-        //     this.model.position.add(new THREE.Vector3(0, -10, 0).clone().multiplyScalar(delta));
-        // }
-    }
-
-    /**
-     * Handles player movement
-     * @param delta time since last frame
-     */
     private handleMovement(delta: number) {
         const moveDir = new THREE.Vector3(0, 0, 0);
 
-        if (this.input.isForward()) moveDir.z -= this.speed;
-        if (this.input.isBackward()) moveDir.z += this.speed;
-        if (this.input.isLeft()) moveDir.x -= this.speed;
-        if (this.input.isRight()) moveDir.x += this.speed;
-        if (this.input.isSpace()) moveDir.y += this.speed;
+        if (this.input.isForward()) moveDir.z -= 1;
+        if (this.input.isBackward()) moveDir.z += 1;
+        if (this.input.isLeft()) moveDir.x -= 1;
+        if (this.input.isRight()) moveDir.x += 1;
 
+        // On n'écrase pas la vélocité X/Z que si on a un input, pour laisser le knockback agir
         if (moveDir.length() > 0) {
             moveDir.normalize();
-            this.model.position.add(moveDir.multiplyScalar(this.speed * delta));
+            // On utilise un lerp pour un mouvement plus fluide
+            this.velocity.x = THREE.MathUtils.lerp(this.velocity.x, moveDir.x * this.speed, 10 * delta);
+            this.velocity.z = THREE.MathUtils.lerp(this.velocity.z, moveDir.z * this.speed, 10 * delta);
 
-            // Rotate mesh towards movement direction
             const targetRotation = Math.atan2(moveDir.x, moveDir.z);
             this.model.rotation.y = THREE.MathUtils.lerp(this.model.rotation.y, targetRotation, this.rotationSpeed * delta);
         }
+
+        // Saut (seulement si on est au sol)
+        if (this.input.isSpace() && this.isGrounded) {
+            this.velocity.y = this.jumpForce;
+            this.isGrounded = false;
+        }
     }
 
-    /**
-     * Handles camera movement relative to player
-     */
     private updateCamera() {
-        const offset = new THREE.Vector3(0, 8, 12); // Steady height and distance
+        const offset = new THREE.Vector3(0, 8, 12);
         const targetPosition = this.model.position.clone().add(offset);
-
         this.camera.position.lerp(targetPosition, 0.1);
         this.camera.lookAt(this.model.position);
     }
 
-    /**
-     * Handles combat logic
-     * @param delta time since last frame
-     * @param enemies list of enemies
-     */
     private handleCombat(delta: number, enemies: Enemy[]) {
         this.fireTimer += delta;
         if (this.fireTimer >= this.fireCooldown && this.fireballs.length < this.fireballBuffer) {
@@ -112,15 +116,9 @@ export class Player implements Entity {
         }
     }
 
-    /**
-     * Finds the nearest enemy to the player
-     * @param enemies list of enemies
-     * @returns nearest enemy or null
-     */
     private findNearestEnemy(enemies: Enemy[]): Enemy | null {
         let nearest = null;
         let minDistance = Infinity;
-
         enemies.forEach(enemy => {
             const dist = this.model.position.distanceTo(enemy.model.position);
             if (dist < minDistance) {
@@ -128,63 +126,65 @@ export class Player implements Entity {
                 nearest = enemy;
             }
         });
-
         return nearest;
     }
 
-    /**
-     * Fires a fireball at the target position
-     * @param targetPos target position
-     */
     private fireFireball(targetPos: THREE.Vector3) {
         const fireball = new Fireball(this.scene, this.model.position.clone(), targetPos);
         this.fireballs.push(fireball);
     }
 
-    /**
-     * Updates fireballs
-     * @param delta time since last frame
-     */
     private updateFireballs(delta: number) {
-        console.log("fireballs:: ", this.fireballs);
         this.fireballs = this.fireballs.filter(fb => {
             const hasLifetime = fb.update(delta);
             const active = hasLifetime && !fb.markedForRemoval;
-            if (!active) {
-                fb.dispose(this.scene);
-            }
+            if (!active) fb.dispose(this.scene);
             return active;
         });
     }
 
-    /**
-     * Deals damage to the player
-     * @param amount damage amount
-     */
     public takeDamage(amount: number, enemyPos: THREE.Vector3) {
+        if (this.damageTimer > 0) return; // Toujours invulnérable
+
         this.hp -= amount;
         if (this.hp < 0) this.hp = 0;
-        // knockback player from enemy position
-        this.model.position.add(this.model.position.clone().sub(enemyPos).normalize().multiplyScalar(5));
+        this.damageTimer = this.damageCooldown;
+
+        // Knockback (impulsion)
+        const knockbackDir = this.model.position.clone().sub(enemyPos).normalize();
+        knockbackDir.y = 0.2; // Petit bond vers le haut
+        this.velocity.add(knockbackDir.multiplyScalar(15));
     }
 
-    /**
-     * Returns the player's position
-     * @returns player's position
-     */
-    public getPosition(): THREE.Vector3 {
-        return this.model.position;
+    public addXp(amount: number) {
+        this.xp += amount;
+        if (this.xp >= this.xpToNextLevel) {
+            this.levelUp();
+        }
     }
 
-    public getHp(): number {
-        return Math.ceil(this.hp);
+    private levelUp() {
+        this.xp -= this.xpToNextLevel;
+        this.level++;
+        this.xpToNextLevel = Math.floor(this.xpToNextLevel * 1.5);
+
+        // Bonus for leveling up (optional but nice)
+        this.hp = Math.min(100, this.hp + 20);
+        this.range += 0.5;
+        this.fireCooldown *= 0.95;
+
+        // Check for double level up if xp is high
+        if (this.xp >= this.xpToNextLevel) {
+            this.levelUp();
+        }
     }
 
-    public isDead(): boolean {
-        return this.hp <= 0;
-    }
-
-    public getFireballs(): Fireball[] {
-        return this.fireballs;
-    }
+    public getPosition(): THREE.Vector3 { return this.model.position; }
+    public getHp(): number { return Math.ceil(this.hp); }
+    public isDead(): boolean { return this.hp <= 0; }
+    public getFireballs(): Fireball[] { return this.fireballs; }
+    public getXp(): number { return this.xp; }
+    public getXpToNextLevel(): number { return this.xpToNextLevel; }
+    public getLevel(): number { return this.level; }
+    public getPickupRange(): number { return this.pickupRange; }
 }

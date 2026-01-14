@@ -8,6 +8,9 @@ function App() {
   const [gameState, setGameState] = useState({
     hp: 100,
     isGameOver: false,
+    xp: 0,
+    xpToNextLevel: 100,
+    level: 1,
   });
 
   const [isMenuOpen, setIsMenuOpen] = useState(true);
@@ -45,6 +48,13 @@ function App() {
   return (
     <div className="app">
       <div id="game-container" ref={containerRef} />
+      <div className="xp-bar-container">
+        <div
+          className="xp-bar-fill"
+          style={{ width: `${(gameState.xp / gameState.xpToNextLevel) * 100}%` }}
+        />
+        <div className="level-badge">LVL {gameState.level}</div>
+      </div>
       <div className="hud">
         <div className="hp-bar-container">
           <div

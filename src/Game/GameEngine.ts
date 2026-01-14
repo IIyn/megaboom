@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { InputHandler } from "./InputHandler";
 import { Player } from "./Player";
 import { EnemyManager } from "./EnemyManager";
+import { PhysicsManager } from "./PhysicsManager";
 
 export class GameEngine {
     private scene: THREE.Scene;
@@ -10,10 +11,23 @@ export class GameEngine {
     private input: InputHandler;
     private player: Player;
     private enemyManager: EnemyManager;
+    private physicsManager: PhysicsManager;
     private clock: THREE.Clock;
-    private onStateUpdate: (state: { hp: number; isGameOver: boolean }) => void;
+    private onStateUpdate: (state: {
+        hp: number;
+        isGameOver: boolean;
+        xp: number;
+        xpToNextLevel: number;
+        level: number
+    }) => void;
 
-    constructor(container: HTMLElement, onStateUpdate: (state: { hp: number; isGameOver: boolean }) => void) {
+    constructor(container: HTMLElement, onStateUpdate: (state: {
+        hp: number;
+        isGameOver: boolean;
+        xp: number;
+        xpToNextLevel: number;
+        level: number
+    }) => void) {
         this.onStateUpdate = onStateUpdate;
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x111111);
@@ -26,8 +40,12 @@ export class GameEngine {
         container.appendChild(this.renderer.domElement);
 
         this.input = new InputHandler();
+        this.physicsManager = new PhysicsManager();
+
         this.player = new Player(this.scene, this.camera, this.input);
-        this.enemyManager = new EnemyManager(this.scene, this.player);
+        this.physicsManager.addEntity(this.player);
+
+        this.enemyManager = new EnemyManager(this.scene, this.player, this.physicsManager);
 
         this.clock = new THREE.Clock();
 
@@ -50,16 +68,29 @@ export class GameEngine {
     }
 
     private setupEnvironment() {
+        // Grid helper is visual only
         const gridHelper = new THREE.GridHelper(100, 100, 0x444444, 0x222222);
-        // collide on gridHelper
         this.scene.add(gridHelper);
 
+        // This plane will be our collidable ground
         const planeGeometry = new THREE.PlaneGeometry(100, 100);
         const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
         const plane = new THREE.Mesh(planeGeometry, planeMaterial);
         plane.rotation.x = -Math.PI / 2;
         plane.receiveShadow = true;
         this.scene.add(plane);
+
+        // Register the plane as ground in the physics manager
+        this.physicsManager.addGround(plane);
+
+        // Example of "evolving the map": Add a small test platform
+        const boxGeometry = new THREE.BoxGeometry(10, 2, 10);
+        const boxMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
+        const platform = new THREE.Mesh(boxGeometry, boxMaterial);
+        platform.position.set(10, 1, -10); // Elevated platform
+        platform.receiveShadow = true;
+        this.scene.add(platform);
+        this.physicsManager.addGround(platform);
     }
 
     private onWindowResize() {
@@ -74,12 +105,19 @@ export class GameEngine {
         requestAnimationFrame(this.animate.bind(this));
         const delta = this.clock.getDelta();
 
+        // Update intents
         this.player.update(delta, this.enemyManager.getEnemies());
         this.enemyManager.update(delta);
+
+        // Resolve physics (gravity + collisions)
+        this.physicsManager.update(delta);
 
         this.onStateUpdate({
             hp: this.player.getHp(),
             isGameOver: this.player.isDead(),
+            xp: this.player.getXp(),
+            xpToNextLevel: this.player.getXpToNextLevel(),
+            level: this.player.getLevel(),
         });
 
         this.renderer.render(this.scene, this.camera);
